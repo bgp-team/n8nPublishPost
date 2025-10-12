@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WordPress Sync</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            max-width: 400px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+        }
+        button:hover:not(:disabled) {
+            background: #5568d3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+        }
+        .status.show { display: block; }
+        .status.success { background: #d4edda; color: #155724; }
+        .status.error { background: #f8d7da; color: #721c24; }
+        .status.loading { background: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 WordPress Sync</h1>
+        <button id="syncBtn" onclick="triggerSync()">Lancer la synchronisation</button>
+        <div id="status" class="status"></div>
+    </div>
+
+    <script>
+        // ⚠️ MODIFIEZ UNIQUEMENT CETTE LIGNE ⚠️
+        const WEBHOOK_URL = 'https://n8n.srv1053791.hstgr.cloud/webhook/publish_posts';
+
+        async function triggerSync() {
+            const button = document.getElementById('syncBtn');
+            const status = document.getElementById('status');
+
+            button.disabled = true;
+            button.textContent = 'Synchronisation en cours...';
+            status.className = 'status loading show';
+            status.textContent = '⏳ Traitement en cours...';
+
+            try {
+                const response = await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        triggered_by: 'client',
+                        timestamp: new Date().toISOString()
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    status.className = 'status success show';
+                    status.textContent = '✅ ' + (data.message || 'Synchronisation réussie !');
+                    if (data.processed_files !== undefined) {
+                        status.textContent += ' (' + data.processed_files + ' fichiers traités)';
+                    }
+                } else {
+                    throw new Error(data.message || 'Erreur lors de la synchronisation');
+                }
+            } catch (error) {
+                status.className = 'status error show';
+                status.textContent = '❌ Erreur : ' + error.message;
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Lancer la synchronisation';
+            }
+        }
+    </script>
+</body>
+</html>
