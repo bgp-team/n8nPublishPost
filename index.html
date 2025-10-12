@@ -42,6 +42,9 @@
         font-size: 14px;
         box-sizing: border-box;
     }
+    input[type="file"] {
+        border: none;
+    }
     textarea {
         height: 150px;
         resize: vertical;
@@ -96,6 +99,12 @@
     <label for="videoUrl">Video URL</label>
     <input type="text" id="videoUrl" placeholder="URL de la vidéo">
 
+    <label for="mainImage">Main Image</label>
+    <input type="file" id="mainImage" accept="image/*">
+
+    <label for="postImage">Post Image</label>
+    <input type="file" id="postImage" accept="image/*">
+
     <label for="content">Content</label>
     <textarea id="content" placeholder="Contenu complet du post..."></textarea>
 
@@ -106,6 +115,17 @@
 <script>
 const WEBHOOK_URL = 'https://n8n.srv1053791.hstgr.cloud/webhook-test/publish_posts';
 
+// Convertit une image en base64
+function toBase64(file) {
+    return new Promise((resolve, reject) => {
+        if (!file) return resolve(null);
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+    });
+}
+
 async function triggerSync() {
     const button = document.getElementById('syncBtn');
     const status = document.getElementById('status');
@@ -115,21 +135,30 @@ async function triggerSync() {
     status.className = 'status loading show';
     status.textContent = '⏳ Traitement en cours...';
 
-    // Récupérer les valeurs du formulaire
-    const payload = {
-        urlWebsite: document.getElementById('urlWebsite').value,
-        username: document.getElementById('username').value,
-        password: document.getElementById('password').value,
-        title: document.getElementById('title').value,
-        meta: document.getElementById('meta').value,
-        iframe: document.getElementById('iframe').value,
-        videoUrl: document.getElementById('videoUrl').value,
-        content: document.getElementById('content').value,
-        triggered_by: 'client',
-        timestamp: new Date().toISOString()
-    };
-
     try {
+        // Lecture des images
+        const mainImageFile = document.getElementById('mainImage').files[0];
+        const postImageFile = document.getElementById('postImage').files[0];
+
+        const mainImageBase64 = await toBase64(mainImageFile);
+        const postImageBase64 = await toBase64(postImageFile);
+
+        // Construction du payload JSON
+        const payload = {
+            urlWebsite: document.getElementById('urlWebsite').value,
+            username: document.getElementById('username').value,
+            password: document.getElementById('password').value,
+            title: document.getElementById('title').value,
+            meta: document.getElementById('meta').value,
+            iframe: document.getElementById('iframe').value,
+            videoUrl: document.getElementById('videoUrl').value,
+            content: document.getElementById('content').value,
+            mainImage: mainImageBase64,
+            postImage: postImageBase64,
+            triggered_by: 'client',
+            timestamp: new Date().toISOString()
+        };
+
         const response = await fetch(WEBHOOK_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -140,12 +169,9 @@ async function triggerSync() {
 
         if (response.ok) {
             status.className = 'status success show';
-            status.textContent = '✅ ' + (data.message || 'Synchronisation réussie !');
-            if (data.processed_files !== undefined) {
-                status.textContent += ' (' + data.processed_files + ' fichiers traités)';
-            }
+            status.textContent = '✅ ' + (data.message || 'Publication réussie !');
         } else {
-            throw new Error(data.message || 'Erreur lors de la synchronisation');
+            throw new Error(data.message || 'Erreur lors de la publication');
         }
     } catch (error) {
         status.className = 'status error show';
